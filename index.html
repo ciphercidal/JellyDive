@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>JellyDive</title>
+  <style>body{margin:0;overflow:hidden;
+  image-rendering: pixelated;
+  user-select: none;}canvas{image-rendering: pixelated;}</style>
+</head>
+<body>
+<div id="main">
+  <canvas id="canvas" width="640" height="320"></canvas>
+</div>
+<script>
+//globals
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+ctx.webkitImageSmoothingEnabled = false;
+ctx.mozImageSmoothingEnabled = false;
+ctx.imageSmoothingEnabled = false;
+ctx.font = "32px Arial";
+var explosion = new Audio('explosion.wav');
+
+var game = new Game();
+game.init();
+
+function Game()
+{
+  this.states = {"start":0,"playing":1}
+  this.state = this.states.start;
+  this.xAccel = 0;
+  this.yAccel = 0.25;
+  this.xSpeed = 0;
+  this.ySpeed = 0;
+  this.jelly = new Thing();
+  this.walls = new Array(60);
+  this.graphics = new Array(1);
+  this.loaded = 1;
+  this.time = null;
+  this.mousedown = false;
+  this.obstacles = new Array(3);
+  this.score = 0;
+  this.highscore = 0;
+  this.difficulty = 1;
+  this.init = function()
+  {
+    window.addEventListener("mousedown",mouseDown, false);
+    window.addEventListener("mouseup",mouseUp, false);
+    this.jelly.height = 32;
+    this.jelly.width = 32;
+    this.jelly.x = 128;
+    this.jelly.y = 96;
+    ctx.fillStyle = "#005784";
+    game.graphics[0] = new Image();
+    game.graphics[0].onload = function(){game.graphicsLoaded();};
+    game.graphics[0].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAa0lEQVQYlYWOwQnAIBRD8+sugjfBDbw6jnN0nF7dQOit4C6SHtrfWhD6TiEJJIKb7DwxsB67AIBomLoZc2ymX6XsPIsNJEkAH52d54IfRLdnE8+HYgPVUFI3iK2KFBsIALFVGQvqv2JCsYEnLsgyzb3/ZZsAAAAASUVORK5CYII=';
+    for(var i=0;i<30;i++)
+    {
+      this.walls[i] = new Thing();
+      this.walls[i].x = 32*i;
+      this.walls[i].y = 288-(Math.floor(Math.random()*10));
+      this.walls[i].width = 32;
+      this.walls[i].height = 32;
+    }
+    for(var i=30;i<60;i++)
+    {
+      this.walls[i] = new Thing();
+      this.walls[i].x = 32*(i-30);
+      this.walls[i].y = 0+(Math.floor(Math.random()*10));
+      this.walls[i].width = 32;
+      this.walls[i].height = 32;
+    }
+    for(var i=0;i<3;i++)
+    {
+      this.obstacles[i] = new Thing();
+      this.obstacles[i].x = i*320+640;
+      this.obstacles[i].randomY();
+      this.obstacles[i].width = 32;
+      this.obstacles[i].height = 96;
+    }
+  };
+  this.graphicsLoaded = function()
+  {
+    game.loaded --;
+    if(game.loaded <= 0)
+    {
+      game.time = setInterval(function(){game.update()}, 33.333);
+    }
+  };
+  this.update = function()
+  {
+    if(game.state == game.states.playing)
+    {
+      game.score+=game.difficulty;
+      if(game.score >= 500 && game.score < 3000)
+      {
+        game.difficulty = 2;
+      }
+      else if(game.score >= 3000)
+      {
+        game.difficulty = 3;
+      }
+      if(game.mouseDown == true)
+      {
+        game.ySpeed -= 0.5;
+      }
+      game.ySpeed+=game.yAccel;
+      game.xSpeed+=game.xAccel;
+      game.jelly.y+=game.ySpeed;
+      game.jelly.x+=game.xSpeed;
+      var collision = false;
+      for(var i=0;i<game.walls.length;i++)
+      {
+        if(game.jelly.collision(game.walls[i]) == true)
+        {
+          collision = true;
+        }
+        game.walls[i].x-=4;
+        if(game.walls[i].x<=-32)
+        {
+          game.walls[i].x = 928;
+        }
+      }
+      for(var i=0;i<game.obstacles.length;i++)
+      {
+        if(game.jelly.collision(game.obstacles[i]) == true)
+        {
+          collision = true;
+        }
+        game.obstacles[i].x-=4+game.difficulty;
+        if(game.obstacles[i].x<=-32)
+        {
+          game.obstacles[i].x = 928;
+        }
+      }
+      if(collision == true)
+      {
+        explosion.play();
+        if(game.score > game.highscore)
+        {
+          game.highscore = game.score;
+        }
+        game.score = 0;
+        game.jelly.x = 128;
+        game.jelly.y = 96;
+        game.ySpeed = 0;
+        game.difficulty = 1;
+        for(var i=0;i<game.obstacles.length;i++)
+        {
+          game.obstacles[i] = new Thing();
+          game.obstacles[i].x = i*320+640;
+          game.obstacles[i].randomY();
+          game.obstacles[i].width = 32;
+          game.obstacles[i].height = 96;
+        }
+        game.state = game.states.start;
+      }
+    }
+    render();
+  };
+}
+
+function Thing()
+{
+  this.x = 0;
+  this.y = 0;
+  this.width = 0;
+  this.height = 0;
+  this.collision = function(thing)
+  {
+    if(this.x > thing.x+thing.width || this.x+this.width < thing.x)
+    {
+      return false;
+    }
+    else if(this.y+this.height < thing.y ||this.y > thing.y+thing.height)
+    {
+      return false;
+    }
+    else
+    {
+        return true;
+    }
+  };
+  this.randomY = function()
+  {
+    this.y = 32+Math.floor(Math.random()*200);
+  };
+}
+
+function render()
+{
+  ctx.fillStyle = "#005784";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(game.state == game.states.playing)
+  {
+    ctx.fillStyle = "#493c2b";
+    for(var i=0;i<game.walls.length;i++)
+    {
+      ctx.fillRect(game.walls[i].x,game.walls[i].y,game.walls[i].width,game.walls[i].height);
+    }
+    for(var i=0;i<game.obstacles.length;i++)
+    {
+      ctx.fillRect(game.obstacles[i].x,game.obstacles[i].y,game.obstacles[i].width,game.obstacles[i].height);
+    }
+    ctx.drawImage(game.graphics[0],Math.floor(game.jelly.x),Math.floor(game.jelly.y),32,32);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("Score: "+game.score,400,32);
+  }
+  else
+  {
+      ctx.fillStyle = "#be2633";
+      ctx.fillText("JellyDive",230,120);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("Click to Start",200,150);
+      ctx.fillText("(Hold down mouse button to move up)",50,200);
+      ctx.fillText("The deeper you go, the higher your score",25,275);
+      ctx.fillText("HighScore: "+game.highscore,300,32);
+  }
+}
+
+function mouseDown(event)
+{
+  game.mouseDown = true;
+  if(game.state == game.states.start)
+  {
+    game.state = game.states.playing;
+  }
+}
+function mouseUp(event)
+{
+  game.mouseDown = false;
+}
+</script>
+</body>
+</html>
