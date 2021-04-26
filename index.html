@@ -45,6 +45,8 @@ function Game()
   {
     window.addEventListener("mousedown",mouseDown, false);
     window.addEventListener("mouseup",mouseUp, false);
+    window.addEventListener("touchstart",mouseDown, false);
+    window.addEventListener("touchend",mouseUp, false);
     this.jelly.height = 32;
     this.jelly.width = 32;
     this.jelly.x = 128;
